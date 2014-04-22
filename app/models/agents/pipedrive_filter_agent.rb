@@ -55,9 +55,9 @@ module Agents
                     (event.payload['previous']['stage_id'] != event.payload['current']['stage_id'])
 
       create_event payload: {
-        message: "User moved #{event.payload['current']['title']} from
-                 #{get_stage_name(event.payload['previous']['stage_id'])} to
-                 #{get_stage_name(event.payload['current']['stage_id'])}.
+        message: "*#{event.payload['current']['title']}* moved from
+                 *#{get_stage_name(event.payload['previous']['stage_id'])}* to
+                 *#{get_stage_name(event.payload['current']['stage_id'])}*.
                  <https://app.pipedrive.com/deal/view/#{event.payload['current']['id']}>".squish
       }
     end
@@ -66,8 +66,8 @@ module Agents
       return unless event.payload['event'] == 'added.deal'
 
       create_event payload: {
-        message: "User created #{event.payload['current']['title']} in
-                 #{get_stage_name(event.payload['current']['stage_id'])}.
+        message: "*#{event.payload['current']['title']}* created in
+                 *#{get_stage_name(event.payload['current']['stage_id'])}*.
                  <https://app.pipedrive.com/deal/view/#{event.payload['current']['id']}>".squish
       }
     end
