@@ -331,6 +331,7 @@ DEPENDENCIES
   geokit (~> 1.6.7)
   geokit-rails3 (~> 0.1.5)
   hipchat (~> 1.1.0)
+  httparty
   jquery-rails (~> 3.0.4)
   json (>= 1.7.7)
   jsonpath (~> 0.5.3)
