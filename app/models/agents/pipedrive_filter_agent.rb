@@ -57,7 +57,8 @@ module Agents
       create_event payload: {
         message: "User moved #{event.payload['current']['title']} from
                  #{get_stage_name(event.payload['previous']['stage_id'])} to
-                 #{get_stage_name(event.payload['current']['stage_id'])}.".squish
+                 #{get_stage_name(event.payload['current']['stage_id'])}.
+                 <https://app.pipedrive.com/deal/view/#{event.payload['current']['id']}>".squish
       }
     end
 
@@ -66,7 +67,8 @@ module Agents
 
       create_event payload: {
         message: "User created #{event.payload['current']['title']} in
-                 #{get_stage_name(event.payload['current']['stage_id'])}.".squish
+                 #{get_stage_name(event.payload['current']['stage_id'])}.
+                 <https://app.pipedrive.com/deal/view/#{event.payload['current']['id']}>".squish
       }
     end
 
