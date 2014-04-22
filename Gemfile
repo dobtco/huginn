@@ -36,6 +36,8 @@ gem 'kramdown', '~> 1.1.0'
 gem 'typhoeus', '~> 0.6.3'
 gem 'nokogiri', '~> 1.6.0'
 
+gem 'pipedrive-ruby', github: 'adamjacobbecker/pipedrive-ruby'
+
 gem 'wunderground', '~> 1.1.0'
 gem 'forecast_io', '~> 2.0.0'
 gem 'rturk', '~> 2.11.0'

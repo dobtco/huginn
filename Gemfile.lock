@@ -1,4 +1,14 @@
 GIT
+  remote: git://github.com/adamjacobbecker/pipedrive-ruby.git
+  revision: 612b71a5a7464b86ad054c89977513efb532d5c7
+  specs:
+    pipedrive-ruby (0.3.3)
+      httparty
+      json (>= 1.7.7)
+      multi_xml (>= 0.5.2)
+      webmock
+
+GIT
   remote: git://github.com/cantino/twitter-stream.git
   revision: fde6bed2b62ca487d49e4a57381bbfca6e33361b
   branch: master
@@ -328,6 +338,7 @@ DEPENDENCIES
   kramdown (~> 1.1.0)
   nokogiri (~> 1.6.0)
   pg
+  pipedrive-ruby!
   pry
   rails (= 3.2.17)
   rr
