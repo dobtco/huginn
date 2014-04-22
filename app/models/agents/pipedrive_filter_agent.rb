@@ -43,6 +43,7 @@ module Agents
         log "Receiving pipedrive event: #{event.id}"
         check_for_deal_added(event)
         check_for_deal_changed_stage(event)
+        check_for_deal_changed_value(event)
       end
     end
 
@@ -50,15 +51,19 @@ module Agents
       Pipedrive::Stage.find(stage_id).try(:name) || 'Unknown stage'
     end
 
+    def deal_link(id)
+      "<https://app.pipedrive.com/deal/view/#{id}>"
+    end
+
     def check_for_deal_changed_stage(event)
       return unless (event.payload['event'] == 'updated.deal') &&
                     (event.payload['previous']['stage_id'] != event.payload['current']['stage_id'])
 
       create_event payload: {
-        message: "*#{event.payload['current']['title']}* moved from
+        message: "_#{event.payload['current']['title']}_ moved from
                  *#{get_stage_name(event.payload['previous']['stage_id'])}* to
                  *#{get_stage_name(event.payload['current']['stage_id'])}*.
-                 <https://app.pipedrive.com/deal/view/#{event.payload['current']['id']}>".squish
+                 #{deal_link(event.payload['current']['id'])}".squish
       }
     end
 
@@ -66,9 +71,22 @@ module Agents
       return unless event.payload['event'] == 'added.deal'
 
       create_event payload: {
-        message: "*#{event.payload['current']['title']}* created in
+        message: "_#{event.payload['current']['title']}_ created in
                  *#{get_stage_name(event.payload['current']['stage_id'])}*.
-                 <https://app.pipedrive.com/deal/view/#{event.payload['current']['id']}>".squish
+                 #{deal_link(event.payload['current']['id'])}".squish
+      }
+    end
+
+    def check_for_deal_changed_value(event)
+      return unless event.payload['event'] == 'updated.deal' &&
+                    (event.payload['previous']['value'] != event.payload['current']['value'])
+
+
+      create_event payload: {
+        message: "_#{event.payload['current']['title']}_ changed value from
+                 *#{event.payload['previous']['formatted_value']}* to
+                 *#{event.payload['current']['formatted_value']}*.
+                 #{deal_link(event.payload['current']['id'])}".squish
       }
     end
 
