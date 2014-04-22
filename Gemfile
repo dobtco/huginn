@@ -1,6 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'rails', '3.2.17'
+gem 'pg'
 gem 'mysql2', '~> 0.3.13'
 gem 'devise', '~> 3.0.0'
 gem 'kaminari', '~> 0.14.1'
