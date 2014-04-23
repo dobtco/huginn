@@ -36,7 +36,7 @@ gem 'kramdown', '~> 1.1.0'
 gem 'typhoeus', '~> 0.6.3'
 gem 'nokogiri', '~> 1.6.0'
 
-gem 'pipedrive-ruby', github: 'adamjacobbecker/pipedrive-ruby'
+gem 'pipedrive-ruby'
 gem 'httparty'
 
 gem 'wunderground', '~> 1.1.0'
