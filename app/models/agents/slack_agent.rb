@@ -1,70 +1,65 @@
 module Agents
   class SlackAgent < Agent
-
     cannot_be_scheduled!
     cannot_create_events!
 
+    DEFAULT_WEBHOOK = 'incoming-webhook'
+    DEFAULT_USERNAME = 'Huginn'
     description <<-MD
-      The SlackAgent collects any Events sent to it and sends them to a slack webhook URL.
-      If the Events' payloads contain a `message`, that will be highlighted, otherwise everything in
-      their payloads will be shown.
+      The SlackAgent lets you receive events and send notifications to [slack](https://slack.com/).
 
-      Set `channel` to your slack channel, e.g. "#office".
+      To get started, you will first need to setup an incoming webhook.
+      Go to, https://`your_team_name`.slack.com/services/new/incoming-webhook,
+      choose a default channel and add the integration.
 
-      Set `username` to the desired username for your webhook.
+      Your webhook URL will look like:
 
-      `icon_url` or `icon_emoji` are optional, and can be used to set the "avatar" for your webhook.
+      https://`your_team_name`.slack.com/services/hooks/incoming-webhook?token=`your_auth_token`
 
-      Set `expected_receive_period_in_days` to the maximum amount of time that you'd expect to pass between Events being received by this Agent.
+      Once the webhook has been setup it can be used to post to other channels or ping team members.
+      To send a private message to team-mate, assign his username as `@username` to the channel option.
+      To communicate with a different webhook on slack, assign your custom webhook name to the webhook option.
+      Messages can also be formatted using [Liquid](https://github.com/cantino/huginn/wiki/Formatting-Events-using-Liquid)
     MD
 
     def default_options
       {
-        'url' => '',
-        'channel' => '',
-        'username' => '',
-        'icon_url' => '',
-        'icon_emoji' => '',
-        'expected_receive_period_in_days' => "2"
+        'team_name' => 'your_team_name',
+        'auth_token' => 'your_auth_token',
+        'channel' => '#general',
+        'username' => DEFAULT_USERNAME,
+        'message' => "Hey there, It's Huginn",
+        'webhook' => DEFAULT_WEBHOOK
       }
     end
 
     def validate_options
-      errors.add(:base, "You need to specify a url") unless options['url'].present?
-      errors.add(:base, "You need to specify a channel") unless options['channel'].present?
-      errors.add(:base, "You need to specify a username") unless options['username'].present?
+      errors.add(:base, "auth_token is required") unless options['auth_token'].present?
+      errors.add(:base, "team_name is required") unless options['team_name'].present?
+      errors.add(:base, "channel is required") unless options['channel'].present?
+    end
+
+    def working?
+      received_event_without_error?
+    end
+
+    def webhook
+      interpolated[:webhook].presence || DEFAULT_WEBHOOK
+    end
+
+    def username
+      interpolated[:username].presence || DEFAULT_USERNAME
+    end
+
+    def slack_notifier
+      @slack_notifier ||= Slack::Notifier.new(interpolated[:team_name], interpolated[:auth_token], webhook, username: username)
     end
 
     def receive(incoming_events)
       incoming_events.each do |event|
-        send_slack_message(event)
+        opts = interpolated(event)
+        slack_notifier.ping opts[:message], channel: opts[:channel], username: opts[:username]
       end
-    end
-
-    def working?
-      last_receive_at && last_receive_at > options['expected_receive_period_in_days'].to_i.days.ago && !recent_error_logs?
-    end
-
-    def send_slack_message(event)
-      log "Sending Slack message for event: #{event.id}"
-
-
-      body = {
-        text: event.payload['message'].presence || event.payload.to_s,
-        channel: options['channel'],
-        username: options['username']
-      }
-
-      body[:icon_emoji] = options['icon_emoji'] if options['icon_emoji'].present?
-      body[:icon_url] = options['icon_url'] if options['icon_url'].present?
-
-      log "#{options['url']} body: #{body.to_json}"
-
-      HTTParty.post(
-        options['url'],
-        body: body.to_json,
-        headers: { 'Content-Type' => 'application/json' }
-      )
     end
   end
 end

@@ -15,7 +15,7 @@ module Agents
 
       To get oAuth credentials for Twitter, [follow these instructions](https://github.com/cantino/huginn/wiki/Getting-a-twitter-oauth-token).
 
-      You must also specify a `message_path` parameter: a [JSONPaths](http://goessner.net/articles/JsonPath/) to the value to tweet.
+      You must also specify a `message` parameter, you can use [Liquid](https://github.com/cantino/huginn/wiki/Formatting-Events-using-Liquid) to format the message.
 
       Set `expected_update_period_in_days` to the maximum amount of time that you'd expect to pass between Events being created by this Agent.
     MD
@@ -25,13 +25,13 @@ module Agents
     end
 
     def working?
-      event_created_within?(options['expected_update_period_in_days']) && most_recent_event && most_recent_event.payload['success'] == true && !recent_error_logs?
+      event_created_within?(interpolated['expected_update_period_in_days']) && most_recent_event && most_recent_event.payload['success'] == true && !recent_error_logs?
     end
 
     def default_options
       {
         'expected_update_period_in_days' => "10",
-        'message_path' => "text"
+        'message' => "{{text}}"
       }
     end
 
@@ -41,7 +41,7 @@ module Agents
         incoming_events = incoming_events.first(20)
       end
       incoming_events.each do |event|
-        tweet_text = Utils.value_at(event.payload, options['message_path'])
+        tweet_text = interpolated(event)['message']
         begin
           tweet = publish_tweet tweet_text
           create_event :payload => {
