@@ -60,7 +60,7 @@ gem 'faraday_middleware'
 gem 'typhoeus', '~> 0.6.3'
 gem 'nokogiri', '~> 1.6.1'
 
-gem 'pipedrive-ruby'
+gem 'pipedrive-ruby', github: 'Meekohi/pipedrive-ruby', branch: 'httpsfix'
 gem 'httparty'
 
 gem 'wunderground', '~> 1.2.0'

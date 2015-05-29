@@ -1,4 +1,16 @@
 GIT
+  remote: git://github.com/Meekohi/pipedrive-ruby.git
+  revision: 931078261f320020f1c3b6f4b00ca410d2819ec4
+  branch: httpsfix
+  specs:
+    pipedrive-ruby (0.3.3)
+      coveralls
+      httparty
+      json (>= 1.7.7)
+      multi_xml (>= 0.5.2)
+      webmock
+
+GIT
   remote: git://github.com/cantino/twitter-stream.git
   revision: 1c60a1007c50476f23374a8aea796769a088ffe0
   branch: master
@@ -197,12 +209,6 @@ GEM
       rack (~> 1.2)
     orm_adapter (0.5.0)
     pg (0.17.1)
-    pipedrive-ruby (0.3.3)
-      coveralls
-      httparty
-      json (>= 1.7.7)
-      multi_xml (>= 0.5.2)
-      webmock
     polyglot (0.3.5)
     protected_attributes (1.0.8)
       activemodel (>= 4.0.1, < 5.0)
@@ -404,7 +410,7 @@ DEPENDENCIES
   mqtt
   nokogiri (~> 1.6.1)
   pg
-  pipedrive-ruby
+  pipedrive-ruby!
   protected_attributes (~> 1.0.8)
   pry
   quiet_assets
