@@ -1,9 +1,10 @@
 module Agents
   class EventFormattingAgent < Agent
     cannot_be_scheduled!
+    can_dry_run!
 
     description <<-MD
-      An Event Formatting Agent allows you to format incoming Events, adding new fields as needed.
+      The Event Formatting Agent allows you to format incoming Events, adding new fields as needed.
 
       For example, here is a possible Event:
 
@@ -51,7 +52,7 @@ module Agents
               {
                 "path": "{{date.pretty}}",
                 "regexp": "\\A(?<time>\\d\\d:\\d\\d [AP]M [A-Z]+)",
-                "to": "pretty_date",
+                "to": "pretty_date"
               }
             ]
           }
@@ -61,7 +62,7 @@ module Agents
           "pretty_date": {
             "time": "10:00 PM EST",
             "0": "10:00 PM EST on January 11, 2013"
-            "1": "10:00 PM EST",
+            "1": "10:00 PM EST"
           }
 
       So you can use it in `instructions` like this:
@@ -80,9 +81,19 @@ module Agents
           }
     MD
 
-    event_description "User defined"
-
-    after_save :clear_matchers
+    event_description do
+      "Events will have the following fields%s:\n\n    %s" % [
+        case options['mode'].to_s
+        when 'merged'
+          ', merged with the original contents'
+        when /\{/
+          ', conditionally merged with the original contents'
+        end,
+        Utils.pretty_print(Hash[options['instructions'].keys.map { |key|
+          [key, "..."]
+        }])
+      ]
+    end
 
     def validate_options
       errors.add(:base, "instructions and mode need to be present.") unless options['instructions'].present? && options['mode'].present?
@@ -107,12 +118,16 @@ module Agents
     end
 
     def receive(incoming_events)
+      matchers = compiled_matchers
+
       incoming_events.each do |event|
-        payload = perform_matching(event.payload)
-        opts = interpolated(event.to_liquid(payload))
-        formatted_event = opts['mode'].to_s == "merge" ? event.payload.dup : {}
-        formatted_event.merge! opts['instructions']
-        create_event :payload => formatted_event
+        interpolate_with(event) do
+          apply_compiled_matchers(matchers, event) do
+            formatted_event = interpolated['mode'].to_s == "merge" ? event.payload.dup : {}
+            formatted_event.merge! interpolated['instructions']
+            create_event payload: formatted_event
+          end
+        end
       end
     end
 
@@ -150,49 +165,47 @@ module Agents
       end
     end
 
-    def perform_matching(payload)
-      matchers.inject(payload.dup) { |hash, matcher|
-        matcher[hash]
-      }
+    def compiled_matchers
+      if matchers = options['matchers']
+        matchers.map { |matcher|
+          regexp, path, to = matcher.values_at(*%w[regexp path to])
+          [Regexp.new(regexp), path, to]
+        }
+      end
     end
 
-    def matchers
-      @matchers ||=
-        if matchers = options['matchers']
-          matchers.map { |matcher|
-            regexp, path, to = matcher.values_at(*%w[regexp path to])
-            re = Regexp.new(regexp)
-            proc { |hash|
-              mhash = {}
-              value = interpolate_string(path, hash)
-              if value.is_a?(String) && (m = re.match(value))
-                m.to_a.each_with_index { |s, i|
-                  mhash[i.to_s] = s
-                }
-                m.names.each do |name|
-                  mhash[name] = m[name]
-                end if m.respond_to?(:names)
-              end
-              if to
-                case value = hash[to]
-                when Hash
-                  value.update(mhash)
-                else
-                  hash[to] = mhash
-                end
-              else
-                hash.update(mhash)
-              end
-              hash
-            }
-          }
-        else
-          []
+    def apply_compiled_matchers(matchers, event, &block)
+      return yield if matchers.nil?
+
+      # event.payload.dup does not work; HashWithIndifferentAccess is
+      # a source of trouble here.
+      hash = {}.update(event.payload)
+
+      matchers.each do |re, path, to|
+        m = re.match(interpolate_string(path, hash)) or next
+
+        mhash =
+          if to
+            case value = hash[to]
+            when Hash
+              value
+            else
+              hash[to] = {}
+            end
+          else
+            hash
+          end
+
+        m.size.times do |i|
+          mhash[i.to_s] = m[i]
         end
-    end
 
-    def clear_matchers
-      @matchers = nil
+        m.names.each do |name|
+          mhash[name] = m[name]
+        end
+      end
+
+      interpolate_with(hash, &block)
     end
   end
 end

@@ -1,4 +1,4 @@
-require 'spec_helper'
+require 'rails_helper'
 
 shared_examples_for EmailConcern do
   let(:valid_options) {
@@ -16,73 +16,79 @@ shared_examples_for EmailConcern do
 
   describe "validations" do
     it "should be valid" do
-      agent.should be_valid
+      expect(agent).to be_valid
     end
 
     it "should validate the presence of 'subject'" do
       agent.options['subject'] = ''
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
 
       agent.options['subject'] = nil
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
     end
 
     it "should validate the presence of 'expected_receive_period_in_days'" do
       agent.options['expected_receive_period_in_days'] = ''
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
 
       agent.options['expected_receive_period_in_days'] = nil
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
     end
 
-    it "should validate that recipients, when provided, is one or more valid email addresses" do
+    it "should validate that recipients, when provided, is one or more valid email addresses or Liquid commands" do
       agent.options['recipients'] = ''
-      agent.should be_valid
+      expect(agent).to be_valid
 
       agent.options['recipients'] = nil
-      agent.should be_valid
+      expect(agent).to be_valid
 
       agent.options['recipients'] = 'bob@example.com'
-      agent.should be_valid
+      expect(agent).to be_valid
 
       agent.options['recipients'] = ['bob@example.com']
-      agent.should be_valid
+      expect(agent).to be_valid
+
+      agent.options['recipients'] = '{{ email }}'
+      expect(agent).to be_valid
+
+      agent.options['recipients'] = '{% if x %}a@x{% else %}b@y{% endif %}'
+      expect(agent).to be_valid
 
       agent.options['recipients'] = ['bob@example.com', 'jane@example.com']
-      agent.should be_valid
+      expect(agent).to be_valid
 
       agent.options['recipients'] = ['bob@example.com', 'example.com']
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
 
       agent.options['recipients'] = ['hi!']
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
 
       agent.options['recipients'] = { :foo => "bar" }
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
 
       agent.options['recipients'] = "wut"
-      agent.should_not be_valid
+      expect(agent).not_to be_valid
     end
   end
 
   describe "#recipients" do
     it "defaults to the user's email address" do
-      agent.recipients.should == [users(:jane).email]
+      expect(agent.recipients).to eq([users(:jane).email])
     end
 
     it "wraps a string with an array" do
       agent.options['recipients'] = 'bob@bob.com'
-      agent.recipients.should == ['bob@bob.com']
+      expect(agent.recipients).to eq(['bob@bob.com'])
     end
 
     it "handles an array" do
       agent.options['recipients'] = ['bob@bob.com', 'jane@jane.com']
-      agent.recipients.should == ['bob@bob.com', 'jane@jane.com']
+      expect(agent.recipients).to eq(['bob@bob.com', 'jane@jane.com'])
     end
 
     it "interpolates" do
       agent.options['recipients'] = "{{ username }}@{{ domain }}"
-      agent.recipients('username' => 'bob', 'domain' => 'example.com').should == ["bob@example.com"]
+      expect(agent.recipients('username' => 'bob', 'domain' => 'example.com')).to eq(["bob@example.com"])
     end
   end
 end

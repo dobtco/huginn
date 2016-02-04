@@ -1,6 +1,9 @@
+# This is not included in the core application.js bundle.
+
 $ ->
   svg = document.querySelector('.agent-diagram svg.diagram')
   overlay = document.querySelector('.agent-diagram .overlay')
+  $(overlay).width($(svg).width()).height($(svg).height())
   getTopLeft = (node) ->
     bbox = node.getBBox()
     point = svg.createSVGPoint()

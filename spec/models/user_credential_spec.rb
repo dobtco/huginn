@@ -1,4 +1,4 @@
-require 'spec_helper'
+require 'rails_helper'
 
 describe UserCredential do
   describe "validation" do
@@ -22,8 +22,8 @@ describe UserCredential do
       user_credential.credential_name = " new name "
       user_credential.credential_value = " new value "
       user_credential.save!
-      user_credential.credential_name.should == "new name"
-      user_credential.credential_value.should == "new value"
+      expect(user_credential.credential_name).to eq("new name")
+      expect(user_credential.credential_value).to eq("new value")
     end
   end
 end

@@ -2,7 +2,7 @@
   <div class='row'>
     <div class='col-md-2'>
         <ul class="nav nav-pills nav-stacked" id="show-tabs">
-          <li><%= link_to '<span class="glyphicon glyphicon-chevron-left"></span> Back'.html_safe, agents_path %></li>
+          <li><%= link_to icon_tag('glyphicon-chevron-left') + ' Back'.html_safe, filtered_agent_return_link || agents_path %></li>
 
           <% if agent_show_view(@agent).present? %>
             <li class='active'><a href="#summary" data-toggle="tab"><span class='glyphicon glyphicon-picture'></span> Summary</a></li>
@@ -15,14 +15,14 @@
           <li><a href="#logs" data-toggle="tab" data-agent-id="<%= @agent.id %>" class='<%= @agent.recent_error_logs? ? 'recent-errors' : '' %>'><span class='glyphicon glyphicon-list-alt'></span> Logs</a></li>
 
           <% if @agent.can_create_events? && @agent.events.count > 0 %>
-            <li><%= link_to '<span class="glyphicon glyphicon-random"></span> Events'.html_safe, agent_events_path(@agent) %></li>
+            <li><%= link_to icon_tag('glyphicon-random') + ' Events'.html_safe, agent_events_path(@agent, return: request.fullpath) %></li>
           <% else %>
             <li class='disabled'><a><span class='glyphicon glyphicon-random'></span> Events</a></li>
           <% end %>
 
           <li class="dropdown">
             <a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="glyphicon glyphicon-th-list"></span> Actions <span class="caret"></span></a>
-            <%= render 'agents/action_menu', :agent => @agent, :returnTo => "show" %>
+            <%= render 'agents/action_menu', :agent => @agent, :return_to => "show" %>
           </li>
         </ul>
       </div>
@@ -72,7 +72,7 @@
             <% if @agent.can_be_scheduled? %>
               <p>
                 <b>Schedule:</b>
-                <%= (@agent.schedule || "n/a").humanize.titleize %>
+                <%= agent_schedule(@agent) %>
               </p>
 
               <p>
@@ -107,11 +107,18 @@
               </p>
             <% end %>
 
+            <% if @agent.try(:oauthable?) %>
+              <p>
+                <b>Service:</b>
+                <%= service_label(@agent.service) %>
+              </p>
+            <% end %>
+
             <% if @agent.can_receive_events? %>
               <p>
                 <b>Event sources:</b>
-                <% if @agent.sources.length %>
-                  <%= @agent.sources.map { |source_agent| link_to(source_agent.name, agent_path(source_agent)) }.to_sentence.html_safe %>
+                <% if (agents = @agent.sources).length > 0 %>
+                  <%= agents.map { |agent| link_to(agent.name, agent_path(agent)) }.to_sentence.html_safe %>
                 <% else %>
                   None
                 <% end %>
@@ -126,8 +133,19 @@
             <% if @agent.can_create_events? %>
               <p>
                 <b>Event receivers:</b>
-                <% if @agent.receivers.length %>
-                  <%= @agent.receivers.map { |receiver_agent| link_to(receiver_agent.name, agent_path(receiver_agent)) }.to_sentence.html_safe %>
+                <% if (agents = @agent.receivers).length > 0 %>
+                  <%= agents.map { |agent| link_to(agent.name, agent_path(agent)) }.to_sentence.html_safe %>
+                <% else %>
+                  None
+                <% end %>
+              </p>
+            <% end %>
+
+            <% if @agent.can_control_other_agents? %>
+              <p>
+                <b>Control Targets:</b>
+                <% if (agents = @agent.control_targets).length > 0 %>
+                  <%= agents.map { |agent| link_to(agent.name, agent_path(agent)) }.to_sentence.html_safe %>
                 <% else %>
                   None
                 <% end %>
@@ -144,9 +162,13 @@
               <pre><%= Utils.pretty_jsonify @agent.options || {} %></pre>
             </p>
 
-            <p>
+            <p id="memory" data-agent-id="<%= @agent.id %>">
               <b>Memory:</b>
-              <pre><%= Utils.pretty_jsonify @agent.memory || {} %></pre>
+              <% if @agent.memory.present? %>
+                <i class="fa fa-spinner fa-pulse spinner"></i>
+                <i class="fa fa-trash action-icon clear"></i>
+              <% end %>
+              <pre class="memory"><%= Utils.pretty_jsonify @agent.memory || {} %></pre>
             </p>
           </div>
         </div>

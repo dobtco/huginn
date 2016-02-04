@@ -2,26 +2,28 @@
   <div class='row'>
     <div class='col-md-12'>
       <div class="page-header">
-        <h2><span class='label label-info scenario'><%= @scenario.name %></span> <%= "Public" if @scenario.public? %> Scenario</h2>
+        <h2><%= scenario_label(@scenario) %> <%= "Public" if @scenario.public? %> Scenario</h2>
+
       </div>
 
       <% if @scenario.description.present? %>
-        <blockquote><%= @scenario.description %></blockquote>
+        <blockquote><%= markdown(@scenario.description) %></blockquote>
       <% end %>
 
-      <%= render 'agents/table', :returnTo => scenario_path(@scenario) %>
+      <%= render 'agents/table', :return_to => scenario_path(@scenario) %>
 
       <br/>
 
       <div class="btn-group">
-        <%= link_to '<span class="glyphicon glyphicon-chevron-left"></span> Back'.html_safe, scenarios_path, class: "btn btn-default" %>
-        <%= link_to '<span class="glyphicon glyphicon-random"></span> View Diagram'.html_safe, scenario_diagram_path(@scenario), class: "btn btn-default" %>
-        <%= link_to '<span class="glyphicon glyphicon-edit"></span> Edit'.html_safe, edit_scenario_path(@scenario), class: "btn btn-default" %>
+        <%= link_to icon_tag('glyphicon-chevron-left') + ' Back', scenarios_path, class: "btn btn-default" %>
+        <%= link_to icon_tag('glyphicon-plus') + ' New Agent', new_agent_path(scenario_id: @scenario.id, return: request.path), class: "btn btn-default" %>
+        <%= link_to icon_tag('glyphicon-random') + ' View Diagram', scenario_diagram_path(@scenario), class: "btn btn-default" %>
+        <%= link_to icon_tag('glyphicon-edit') + ' Edit', edit_scenario_path(@scenario), class: "btn btn-default" %>
         <% if @scenario.source_url.present? %>
-          <%= link_to '<span class="glyphicon glyphicon-plus"></span> Update'.html_safe, new_scenario_imports_path(:url => @scenario.source_url), class: "btn btn-default" %>
+          <%= link_to icon_tag('glyphicon-refresh') + ' Update', new_scenario_imports_path(url: @scenario.source_url), class: "btn btn-default" %>
         <% end %>
-        <%= link_to '<span class="glyphicon glyphicon-share-alt"></span> Share'.html_safe, share_scenario_path(@scenario), class: "btn btn-default" %>
-        <%= link_to '<span class="glyphicon glyphicon-trash"></span> Delete'.html_safe, scenario_path(@scenario), method: :delete, data: { confirm: "This will remove the '#{@scenario.name}' Scenerio from all Agents and delete it.  Are you sure?" }, class: "btn btn-default" %>
+        <%= link_to icon_tag('glyphicon-share-alt') + ' Share', share_scenario_path(@scenario), class: "btn btn-default" %>
+        <%= link_to icon_tag('glyphicon-trash') + ' Delete', scenario_path(@scenario), method: :delete, data: { confirm: "This will remove the '#{@scenario.name}' Scenerio from all Agents and delete it.  Are you sure?" }, class: "btn btn-default" %>
       </div>
     </div>
   </div>

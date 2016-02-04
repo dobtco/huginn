@@ -1,8 +1,10 @@
-require 'spec_helper'
+require 'rails_helper'
 
 describe ScenarioImport do
   let(:user) { users(:bob) }
   let(:guid) { "somescenarioguid" }
+  let(:tag_fg_color) { "#ffffff" }
+  let(:tag_bg_color) { "#000000" }
   let(:description) { "This is a cool Huginn Scenario that does something useful!" }
   let(:name) { "A useful Scenario" }
   let(:source_url) { "http://example.com/scenarios/2/export.json" }
@@ -28,7 +30,7 @@ describe ScenarioImport do
       :type => "Agents::WeatherAgent",
       :name => "a weather agent",
       :schedule => "5pm",
-      :keep_events_for => 14,
+      :keep_events_for => 14.days,
       :disabled => true,
       :guid => "a-weather-agent",
       :options => weather_agent_options
@@ -45,11 +47,26 @@ describe ScenarioImport do
       :options => trigger_agent_options
     }
   end
+  let(:valid_parsed_basecamp_agent_data) do
+    {
+      :type => "Agents::BasecampAgent",
+      :name => "Basecamp test",
+      :schedule => "every_2m",
+      :keep_events_for => 0,
+      :propagate_immediately => true,
+      :disabled => false,
+      :guid => "a-basecamp-agent",
+      :options => {project_id: 12345}
+    }
+  end
   let(:valid_parsed_data) do
-    { 
+    {
+      :schema_version => 1,
       :name => name,
       :description => description,
       :guid => guid,
+      :tag_fg_color => tag_fg_color,
+      :tag_bg_color => tag_bg_color,
       :source_url => source_url,
       :exported_at => 2.days.ago.utc.iso8601,
       :agents => [
@@ -58,7 +75,8 @@ describe ScenarioImport do
       ],
       :links => [
         { :source => 0, :receiver => 1 }
-      ]
+      ],
+      :control_links => []
     }
   end
   let(:valid_data) { valid_parsed_data.to_json }
@@ -66,7 +84,7 @@ describe ScenarioImport do
 
   describe "initialization" do
     it "is initialized with an attributes hash" do
-      ScenarioImport.new(:url => "http://google.com").url.should == "http://google.com"
+      expect(ScenarioImport.new(:url => "http://google.com").url).to eq("http://google.com")
     end
   end
 
@@ -78,79 +96,79 @@ describe ScenarioImport do
     end
 
     it "is not valid when none of file, url, or data are present" do
-      subject.should_not be_valid
-      subject.should have(1).error_on(:base)
-      subject.errors[:base].should include("Please provide either a Scenario JSON File or a Public Scenario URL.")
+      expect(subject).not_to be_valid
+      expect(subject).to have(1).error_on(:base)
+      expect(subject.errors[:base]).to include("Please provide either a Scenario JSON File or a Public Scenario URL.")
     end
 
     describe "data" do
       it "should be invalid with invalid data" do
         subject.data = invalid_data
-        subject.should_not be_valid
-        subject.should have(1).error_on(:base)
+        expect(subject).not_to be_valid
+        expect(subject).to have(1).error_on(:base)
 
         subject.data = "foo"
-        subject.should_not be_valid
-        subject.should have(1).error_on(:base)
+        expect(subject).not_to be_valid
+        expect(subject).to have(1).error_on(:base)
 
         # It also clears the data when invalid
-        subject.data.should be_nil
+        expect(subject.data).to be_nil
       end
 
       it "should be valid with valid data" do
         subject.data = valid_data
-        subject.should be_valid
+        expect(subject).to be_valid
       end
     end
 
     describe "url" do
       it "should be invalid with an unreasonable URL" do
         subject.url = "foo"
-        subject.should_not be_valid
-        subject.should have(1).error_on(:url)
-        subject.errors[:url].should include("appears to be invalid")
+        expect(subject).not_to be_valid
+        expect(subject).to have(1).error_on(:url)
+        expect(subject.errors[:url]).to include("appears to be invalid")
       end
 
       it "should be invalid when the referenced url doesn't contain a scenario" do
         stub_request(:get, "http://example.com/scenarios/1/export.json").to_return(:status => 200, :body => invalid_data)
         subject.url = "http://example.com/scenarios/1/export.json"
-        subject.should_not be_valid
-        subject.errors[:base].should include("The provided data does not appear to be a valid Scenario.")
+        expect(subject).not_to be_valid
+        expect(subject.errors[:base]).to include("The provided data does not appear to be a valid Scenario.")
       end
 
       it "should be valid when the url points to a valid scenario" do
         stub_request(:get, "http://example.com/scenarios/1/export.json").to_return(:status => 200, :body => valid_data)
         subject.url = "http://example.com/scenarios/1/export.json"
-        subject.should be_valid
+        expect(subject).to be_valid
       end
     end
 
     describe "file" do
       it "should be invalid when the uploaded file doesn't contain a scenario" do
         subject.file = StringIO.new("foo")
-        subject.should_not be_valid
-        subject.errors[:base].should include("The provided data does not appear to be a valid Scenario.")
+        expect(subject).not_to be_valid
+        expect(subject.errors[:base]).to include("The provided data does not appear to be a valid Scenario.")
 
         subject.file = StringIO.new(invalid_data)
-        subject.should_not be_valid
-        subject.errors[:base].should include("The provided data does not appear to be a valid Scenario.")
+        expect(subject).not_to be_valid
+        expect(subject.errors[:base]).to include("The provided data does not appear to be a valid Scenario.")
       end
 
       it "should be valid with a valid uploaded scenario" do
         subject.file = StringIO.new(valid_data)
-        subject.should be_valid
+        expect(subject).to be_valid
       end
     end
   end
-  
+
   describe "#dangerous?" do
     it "returns false on most Agents" do
-      ScenarioImport.new(:data => valid_data).should_not be_dangerous
+      expect(ScenarioImport.new(:data => valid_data)).not_to be_dangerous
     end
 
     it "returns true if a ShellCommandAgent is present" do
       valid_parsed_data[:agents][0][:type] = "Agents::ShellCommandAgent"
-      ScenarioImport.new(:data => valid_parsed_data.to_json).should be_dangerous
+      expect(ScenarioImport.new(:data => valid_parsed_data.to_json)).to be_dangerous
     end
   end
 
@@ -164,55 +182,106 @@ describe ScenarioImport do
     context "when this scenario has never been seen before" do
       describe "#import" do
         it "makes a new scenario" do
-          lambda {
+          expect {
             scenario_import.import(:skip_agents => true)
-          }.should change { users(:bob).scenarios.count }.by(1)
+          }.to change { users(:bob).scenarios.count }.by(1)
 
-          scenario_import.scenario.name.should == name
-          scenario_import.scenario.description.should == description
-          scenario_import.scenario.guid.should == guid
-          scenario_import.scenario.source_url.should == source_url
-          scenario_import.scenario.public.should be_false
+          expect(scenario_import.scenario.name).to eq(name)
+          expect(scenario_import.scenario.description).to eq(description)
+          expect(scenario_import.scenario.guid).to eq(guid)
+          expect(scenario_import.scenario.tag_fg_color).to eq(tag_fg_color)
+          expect(scenario_import.scenario.tag_bg_color).to eq(tag_bg_color)
+          expect(scenario_import.scenario.source_url).to eq(source_url)
+          expect(scenario_import.scenario.public).to be_falsey
         end
 
         it "creates the Agents" do
-          lambda {
+          expect {
             scenario_import.import
-          }.should change { users(:bob).agents.count }.by(2)
+          }.to change { users(:bob).agents.count }.by(2)
 
           weather_agent = scenario_import.scenario.agents.find_by(:guid => "a-weather-agent")
           trigger_agent = scenario_import.scenario.agents.find_by(:guid => "a-trigger-agent")
 
-          weather_agent.name.should == "a weather agent"
-          weather_agent.schedule.should == "5pm"
-          weather_agent.keep_events_for.should == 14
-          weather_agent.propagate_immediately.should be_false
-          weather_agent.should be_disabled
-          weather_agent.memory.should be_empty
-          weather_agent.options.should == weather_agent_options
+          expect(weather_agent.name).to eq("a weather agent")
+          expect(weather_agent.schedule).to eq("5pm")
+          expect(weather_agent.keep_events_for).to eq(14.days)
+          expect(weather_agent.propagate_immediately).to be_falsey
+          expect(weather_agent).to be_disabled
+          expect(weather_agent.memory).to be_empty
+          expect(weather_agent.options).to eq(weather_agent_options)
 
-          trigger_agent.name.should == "listen for weather"
-          trigger_agent.sources.should == [weather_agent]
-          trigger_agent.schedule.should be_nil
-          trigger_agent.keep_events_for.should == 0
-          trigger_agent.propagate_immediately.should be_true
-          trigger_agent.should_not be_disabled
-          trigger_agent.memory.should be_empty
-          trigger_agent.options.should == trigger_agent_options
+          expect(trigger_agent.name).to eq("listen for weather")
+          expect(trigger_agent.sources).to eq([weather_agent])
+          expect(trigger_agent.schedule).to be_nil
+          expect(trigger_agent.keep_events_for).to eq(0)
+          expect(trigger_agent.propagate_immediately).to be_truthy
+          expect(trigger_agent).not_to be_disabled
+          expect(trigger_agent.memory).to be_empty
+          expect(trigger_agent.options).to eq(trigger_agent_options)
         end
 
         it "creates new Agents, even if one already exists with the given guid (so that we don't overwrite a user's work outside of the scenario)" do
           agents(:bob_weather_agent).update_attribute :guid, "a-weather-agent"
 
-          lambda {
+          expect {
             scenario_import.import
-          }.should change { users(:bob).agents.count }.by(2)
+          }.to change { users(:bob).agents.count }.by(2)
+        end
+
+        context "when the schema_version is less than 1" do
+          before do
+            valid_parsed_weather_agent_data[:keep_events_for] = 2
+            valid_parsed_data.delete(:schema_version)
+          end
+
+          it "translates keep_events_for from days to seconds" do
+            scenario_import.import
+            expect(scenario_import.errors).to be_empty
+            weather_agent = scenario_import.scenario.agents.find_by(:guid => "a-weather-agent")
+            trigger_agent = scenario_import.scenario.agents.find_by(:guid => "a-trigger-agent")
+
+            expect(weather_agent.keep_events_for).to eq(2.days)
+            expect(trigger_agent.keep_events_for).to eq(0)
+          end
+        end
+
+        describe "with control links" do
+          it 'creates the links' do
+            valid_parsed_data[:control_links] = [
+              { :controller => 1, :control_target => 0 }
+            ]
+
+            expect {
+              scenario_import.import
+            }.to change { users(:bob).agents.count }.by(2)
+
+            weather_agent = scenario_import.scenario.agents.find_by(:guid => "a-weather-agent")
+            trigger_agent = scenario_import.scenario.agents.find_by(:guid => "a-trigger-agent")
+
+            expect(trigger_agent.sources).to eq([weather_agent])
+            expect(weather_agent.controllers.to_a).to eq([trigger_agent])
+            expect(trigger_agent.control_targets.to_a).to eq([weather_agent])
+          end
+
+          it "doesn't crash without any control links" do
+            valid_parsed_data.delete(:control_links)
+
+            expect {
+              scenario_import.import
+            }.to change { users(:bob).agents.count }.by(2)
+
+            weather_agent = scenario_import.scenario.agents.find_by(:guid => "a-weather-agent")
+            trigger_agent = scenario_import.scenario.agents.find_by(:guid => "a-trigger-agent")
+
+            expect(trigger_agent.sources).to eq([weather_agent])
+          end
         end
       end
 
       describe "#generate_diff" do
         it "returns AgentDiff objects for the incoming Agents" do
-          scenario_import.should be_valid
+          expect(scenario_import).to be_valid
 
           agent_diffs = scenario_import.agent_diffs
 
@@ -223,32 +292,32 @@ describe ScenarioImport do
             if key == :type
               value = value.split("::").last
             end
-            weather_agent_diff.should respond_to(key)
+            expect(weather_agent_diff).to respond_to(key)
             field = weather_agent_diff.send(key)
-            field.should be_a(ScenarioImport::AgentDiff::FieldDiff)
-            field.incoming.should == value
-            field.updated.should == value
-            field.current.should be_nil
+            expect(field).to be_a(ScenarioImport::AgentDiff::FieldDiff)
+            expect(field.incoming).to eq(value)
+            expect(field.updated).to eq(value)
+            expect(field.current).to be_nil
           end
-          weather_agent_diff.should_not respond_to(:propagate_immediately)
+          expect(weather_agent_diff).not_to respond_to(:propagate_immediately)
 
           valid_parsed_trigger_agent_data.each do |key, value|
             if key == :type
               value = value.split("::").last
             end
-            trigger_agent_diff.should respond_to(key)
+            expect(trigger_agent_diff).to respond_to(key)
             field = trigger_agent_diff.send(key)
-            field.should be_a(ScenarioImport::AgentDiff::FieldDiff)
-            field.incoming.should == value
-            field.updated.should == value
-            field.current.should be_nil
+            expect(field).to be_a(ScenarioImport::AgentDiff::FieldDiff)
+            expect(field.incoming).to eq(value)
+            expect(field.updated).to eq(value)
+            expect(field.current).to be_nil
           end
-          trigger_agent_diff.should_not respond_to(:schedule)
+          expect(trigger_agent_diff).not_to respond_to(:schedule)
         end
       end
     end
 
-    context "when an a scenario already exists with the given guid" do
+    context "when an a scenario already exists with the given guid for the importing user" do
       let!(:existing_scenario) do
         _existing_scenerio = users(:bob).scenarios.build(:name => "an existing scenario", :description => "something")
         _existing_scenerio.guid = guid
@@ -262,47 +331,49 @@ describe ScenarioImport do
 
       describe "#import" do
         it "uses the existing scenario, updating its data" do
-          lambda {
+          expect {
             scenario_import.import(:skip_agents => true)
-            scenario_import.scenario.should == existing_scenario
-          }.should_not change { users(:bob).scenarios.count }
+            expect(scenario_import.scenario).to eq(existing_scenario)
+          }.not_to change { users(:bob).scenarios.count }
 
           existing_scenario.reload
-          existing_scenario.guid.should == guid
-          existing_scenario.description.should == description
-          existing_scenario.name.should == name
-          existing_scenario.source_url.should == source_url
-          existing_scenario.public.should be_false
+          expect(existing_scenario.guid).to eq(guid)
+          expect(existing_scenario.tag_fg_color).to eq(tag_fg_color)
+          expect(existing_scenario.tag_bg_color).to eq(tag_bg_color)
+          expect(existing_scenario.description).to eq(description)
+          expect(existing_scenario.name).to eq(name)
+          expect(existing_scenario.source_url).to eq(source_url)
+          expect(existing_scenario.public).to be_falsey
         end
 
         it "updates any existing agents in the scenario, and makes new ones as needed" do
-          scenario_import.should be_valid
+          expect(scenario_import).to be_valid
 
-          lambda {
+          expect {
             scenario_import.import
-          }.should change { users(:bob).agents.count }.by(1) # One, because the weather agent already existed.
+          }.to change { users(:bob).agents.count }.by(1) # One, because the weather agent already existed.
 
           weather_agent = existing_scenario.agents.find_by(:guid => "a-weather-agent")
           trigger_agent = existing_scenario.agents.find_by(:guid => "a-trigger-agent")
 
-          weather_agent.should == agents(:bob_weather_agent)
+          expect(weather_agent).to eq(agents(:bob_weather_agent))
 
-          weather_agent.name.should == "a weather agent"
-          weather_agent.schedule.should == "5pm"
-          weather_agent.keep_events_for.should == 14
-          weather_agent.propagate_immediately.should be_false
-          weather_agent.should be_disabled
-          weather_agent.memory.should be_empty
-          weather_agent.options.should == weather_agent_options
+          expect(weather_agent.name).to eq("a weather agent")
+          expect(weather_agent.schedule).to eq("5pm")
+          expect(weather_agent.keep_events_for).to eq(14.days)
+          expect(weather_agent.propagate_immediately).to be_falsey
+          expect(weather_agent).to be_disabled
+          expect(weather_agent.memory).to be_empty
+          expect(weather_agent.options).to eq(weather_agent_options)
 
-          trigger_agent.name.should == "listen for weather"
-          trigger_agent.sources.should == [weather_agent]
-          trigger_agent.schedule.should be_nil
-          trigger_agent.keep_events_for.should == 0
-          trigger_agent.propagate_immediately.should be_true
-          trigger_agent.should_not be_disabled
-          trigger_agent.memory.should be_empty
-          trigger_agent.options.should == trigger_agent_options
+          expect(trigger_agent.name).to eq("listen for weather")
+          expect(trigger_agent.sources).to eq([weather_agent])
+          expect(trigger_agent.schedule).to be_nil
+          expect(trigger_agent.keep_events_for).to eq(0)
+          expect(trigger_agent.propagate_immediately).to be_truthy
+          expect(trigger_agent).not_to be_disabled
+          expect(trigger_agent.memory).to be_empty
+          expect(trigger_agent.options).to eq(trigger_agent_options)
         end
 
         it "honors updates coming from the UI" do
@@ -310,22 +381,22 @@ describe ScenarioImport do
             "0" => {
               "name" => "updated name",
               "schedule" => "6pm",
-              "keep_events_for" => "2",
+              "keep_events_for" => 2.days.to_i.to_s,
               "disabled" => "false",
               "options" => weather_agent_options.merge("api_key" => "foo").to_json
             }
           }
 
-          scenario_import.should be_valid
+          expect(scenario_import).to be_valid
 
-          scenario_import.import.should be_true
+          expect(scenario_import.import).to be_truthy
 
           weather_agent = existing_scenario.agents.find_by(:guid => "a-weather-agent")
-          weather_agent.name.should == "updated name"
-          weather_agent.schedule.should == "6pm"
-          weather_agent.keep_events_for.should == 2
-          weather_agent.should_not be_disabled
-          weather_agent.options.should == weather_agent_options.merge("api_key" => "foo")
+          expect(weather_agent.name).to eq("updated name")
+          expect(weather_agent.schedule).to eq("6pm")
+          expect(weather_agent.keep_events_for).to eq(2.days.to_i)
+          expect(weather_agent).not_to be_disabled
+          expect(weather_agent.options).to eq(weather_agent_options.merge("api_key" => "foo"))
         end
 
         it "adds errors when updated agents are invalid" do
@@ -333,17 +404,17 @@ describe ScenarioImport do
             "0" => {
               "name" => "",
               "schedule" => "foo",
-              "keep_events_for" => "2",
+              "keep_events_for" => 2.days.to_i.to_s,
               "options" => weather_agent_options.merge("api_key" => "").to_json
             }
           }
 
-          scenario_import.import.should be_false
+          expect(scenario_import.import).to be_falsey
 
           errors = scenario_import.errors.full_messages.to_sentence
-          errors.should =~ /Name can't be blank/
-          errors.should =~ /api_key is required/
-          errors.should =~ /Schedule is not a valid schedule/
+          expect(errors).to match(/Name can't be blank/)
+          expect(errors).to match(/api_key is required/)
+          expect(errors).to match(/Schedule is not a valid schedule/)
         end
       end
 
@@ -354,15 +425,43 @@ describe ScenarioImport do
           trigger_agent_diff = agent_diffs[1]
 
           # Already exists
-          weather_agent_diff.agent.should == agents(:bob_weather_agent)
+          expect(weather_agent_diff.agent).to eq(agents(:bob_weather_agent))
           valid_parsed_weather_agent_data.each do |key, value|
             next if key == :type
-            weather_agent_diff.send(key).current.should == agents(:bob_weather_agent).send(key)
+            expect(weather_agent_diff.send(key).current).to eq(agents(:bob_weather_agent).send(key))
           end
 
           # Doesn't exist yet
           valid_parsed_trigger_agent_data.each do |key, value|
-            trigger_agent_diff.send(key).current.should be_nil
+            expect(trigger_agent_diff.send(key).current).to be_nil
+          end
+        end
+
+        context "when the schema_version is less than 1" do
+          it "translates keep_events_for from days to seconds" do
+            valid_parsed_data.delete(:schema_version)
+            valid_parsed_data[:agents] = [valid_parsed_weather_agent_data.merge(keep_events_for: 5)]
+
+            scenario_import.merges = {
+              "0" => {
+                "name" => "a new name",
+                "schedule" => "6pm",
+                "keep_events_for" => 2.days.to_i.to_s,
+                "disabled" => "true",
+                "options" => weather_agent_options.merge("api_key" => "foo").to_json
+              }
+            }
+
+            expect(scenario_import).to be_valid
+
+            weather_agent_diff = scenario_import.agent_diffs[0]
+
+            expect(weather_agent_diff.name.current).to eq(agents(:bob_weather_agent).name)
+            expect(weather_agent_diff.name.incoming).to eq('a weather agent')
+            expect(weather_agent_diff.name.updated).to eq('a new name')
+            expect(weather_agent_diff.keep_events_for.current).to eq(45.days.to_i)
+            expect(weather_agent_diff.keep_events_for.incoming).to eq(5.days.to_i)
+            expect(weather_agent_diff.keep_events_for.updated).to eq(2.days.to_i.to_s)
           end
         end
 
@@ -371,7 +470,7 @@ describe ScenarioImport do
             "0" => {
               "name" => "a new name",
               "schedule" => "6pm",
-              "keep_events_for" => "2",
+              "keep_events_for" => 2.days.to_s,
               "disabled" => "true",
               "options" => weather_agent_options.merge("api_key" => "foo").to_json
             },
@@ -380,20 +479,21 @@ describe ScenarioImport do
             }
           }
 
-          scenario_import.should be_valid
+          expect(scenario_import).to be_valid
 
           agent_diffs = scenario_import.agent_diffs
           weather_agent_diff = agent_diffs[0]
           trigger_agent_diff = agent_diffs[1]
 
-          weather_agent_diff.name.current.should == agents(:bob_weather_agent).name
-          weather_agent_diff.name.incoming.should == valid_parsed_weather_agent_data[:name]
-          weather_agent_diff.name.updated.should == "a new name"
+          expect(weather_agent_diff.name.current).to eq(agents(:bob_weather_agent).name)
+          expect(weather_agent_diff.name.incoming).to eq(valid_parsed_weather_agent_data[:name])
+          expect(weather_agent_diff.name.updated).to eq("a new name")
 
-          weather_agent_diff.schedule.updated.should == "6pm"
-          weather_agent_diff.keep_events_for.updated.should == "2"
-          weather_agent_diff.disabled.updated.should == "true"
-          weather_agent_diff.options.updated.should == weather_agent_options.merge("api_key" => "foo")
+          expect(weather_agent_diff.schedule.updated).to eq("6pm")
+          expect(weather_agent_diff.keep_events_for.current).to eq(45.days)
+          expect(weather_agent_diff.keep_events_for.updated).to eq(2.days.to_s)
+          expect(weather_agent_diff.disabled.updated).to eq("true")
+          expect(weather_agent_diff.options.updated).to eq(weather_agent_options.merge("api_key" => "foo"))
         end
 
         it "adds errors on validation when updated options are unparsable" do
@@ -402,8 +502,85 @@ describe ScenarioImport do
               "options" => '{'
             }
           }
-          scenario_import.should_not be_valid
-          scenario_import.should have(1).error_on(:base)
+          expect(scenario_import).not_to be_valid
+          expect(scenario_import).to have(1).error_on(:base)
+        end
+      end
+    end
+    
+    context "when Bob imports Jane's scenario" do
+      let!(:existing_scenario) do
+        _existing_scenerio = users(:jane).scenarios.build(:name => "an existing scenario", :description => "something")
+        _existing_scenerio.guid = guid
+        _existing_scenerio.save!
+        _existing_scenerio
+      end
+      
+      describe "#import" do
+        it "makes a new scenario for Bob" do
+          expect {
+            scenario_import.import(:skip_agents => true)
+          }.to change { users(:bob).scenarios.count }.by(1)
+
+          expect(Scenario.where(guid: guid).count).to eq(2)
+
+          expect(scenario_import.scenario.name).to eq(name)
+          expect(scenario_import.scenario.description).to eq(description)
+          expect(scenario_import.scenario.guid).to eq(guid)
+          expect(scenario_import.scenario.tag_fg_color).to eq(tag_fg_color)
+          expect(scenario_import.scenario.tag_bg_color).to eq(tag_bg_color)
+          expect(scenario_import.scenario.source_url).to eq(source_url)
+          expect(scenario_import.scenario.public).to be_falsey
+        end
+
+        it "does not change Jane's scenario" do
+          expect {
+            scenario_import.import(:skip_agents => true)
+          }.not_to change { users(:jane).scenarios }
+          expect(users(:jane).scenarios.find_by(guid: guid)).to eq(existing_scenario)
+        end
+      end
+    end
+
+    context "agents which require a service" do
+      let(:valid_parsed_services) do
+        data = valid_parsed_data
+        data[:agents] = [valid_parsed_basecamp_agent_data,
+                         valid_parsed_trigger_agent_data]
+        data
+      end
+
+      let(:valid_parsed_services_data) { valid_parsed_services.to_json }
+
+      let(:services_scenario_import) {
+        _import = ScenarioImport.new(:data => valid_parsed_services_data)
+        _import.set_user users(:bob)
+        _import
+      }
+
+      describe "#generate_diff" do
+        it "should check if the agent requires a service" do
+          agent_diffs = services_scenario_import.agent_diffs
+          basecamp_agent_diff = agent_diffs[0]
+          expect(basecamp_agent_diff.requires_service?).to eq(true)
+        end
+
+        it "should add an error when no service is selected" do
+          expect(services_scenario_import.import).to eq(false)
+          expect(services_scenario_import.errors[:base].length).to eq(1)
+        end
+      end
+
+      describe "#import" do
+        it "should import" do
+          services_scenario_import.merges = {
+            "0" => {
+              "service_id" => "0",
+            }
+          }
+          expect {
+            expect(services_scenario_import.import).to eq(true)
+          }.to change { users(:bob).agents.count }.by(2)
         end
       end
     end

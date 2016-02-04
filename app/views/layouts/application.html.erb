@@ -9,6 +9,20 @@
     <%= stylesheet_link_tag    "application", :media => "all" %>
     <%= javascript_include_tag "application" %>
     <%= csrf_meta_tags %>
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/vnd.microsoft.icon" href="/favicon.ico" sizes="16x16">
+    <link rel="icon" type="image/png" href="/android-chrome-48x48.png" sizes="48x48">
+    <link rel="icon" type="image/png" href="/android-chrome-192x192.png" sizes="192x192">
+    <link rel="manifest" href="/manifest.json">
+    <%= yield(:ace_editor_script) %>
     <%= yield(:head) %>
   </head>
   <body>
@@ -24,28 +38,32 @@
           <%= render 'layouts/messages' %>
         </div>
       </div>
-      
-      <%= yield %>
+      <% if user_signed_in? %>
+        <%= render "upgrade_warning" %>
+      <% end %>
+
+      <div id="main-content">
+        <%= yield %>
+      </div>
       
     </div>
 
     <script>
-      var agentPaths = {};
-      var agentNames = [];
+      window.agentPaths = {};
+      window.agentNames = [];
       <% if current_user.present? -%>
         var myAgents = <%= Utils.jsonify(current_user.agents.pluck(:name, :id).inject({}) {|m, a| m[a.first] = agent_path(a.last); m }) %>;
         var myScenarios = <%= Utils.jsonify(current_user.scenarios.pluck(:name, :id).inject({}) {|m, s| m[s.first + " Scenario"] = scenario_path(s.last); m }) %>;
-        $.extend(agentPaths, myAgents);
-        $.extend(agentPaths, myScenarios);
-        agentPaths["All Agents Index"] = <%= Utils.jsonify agents_path %>;
-        agentPaths["New Agent"] = <%= Utils.jsonify new_agent_path %>;
-        agentPaths["Account"] = <%= Utils.jsonify edit_user_registration_path %>;
-        agentPaths["Events Index"] = <%= Utils.jsonify events_path %>;
-        agentPaths["View Agent Diagram"] = <%= Utils.jsonify diagram_path %>;
-        agentPaths["Run Event Propagation"] = { url: <%= Utils.jsonify propagate_agents_path %>, method: 'POST' };
+        $.extend(window.agentPaths, myAgents);
+        $.extend(window.agentPaths, myScenarios);
+        window.agentPaths["All Agents Index"] = <%= Utils.jsonify agents_path %>;
+        window.agentPaths["New Agent"] = <%= Utils.jsonify new_agent_path %>;
+        window.agentPaths["Account"] = <%= Utils.jsonify edit_user_registration_path %>;
+        window.agentPaths["Events Index"] = <%= Utils.jsonify events_path %>;
+        window.agentPaths["View Agent Diagram"] = <%= Utils.jsonify diagram_path %>;
+        window.agentPaths["Run Event Propagation"] = { url: <%= Utils.jsonify propagate_agents_path %>, method: 'POST' };
 
-
-        $.each(agentPaths, function(name, v) { agentNames.push(name); });
+        $.each(window.agentPaths, function(name, v) { window.agentNames.push(name); });
       <% end -%>
     </script>
   </body>

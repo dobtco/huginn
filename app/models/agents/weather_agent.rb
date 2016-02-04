@@ -5,8 +5,12 @@ module Agents
   class WeatherAgent < Agent
     cannot_receive_events!
 
+    gem_dependency_check { defined?(Wunderground) && defined?(ForecastIO) }
+
     description <<-MD
-      The WeatherAgent creates an event for the day's weather at a given `location`.
+      The Weather Agent creates an event for the day's weather at a given `location`.
+
+      #{'## Include `forecast_io` and `wunderground` in your Gemfile to use this Agent!' if dependencies_missing?}
 
       You also must select `which_day` you would like to get the weather for where the number 0 is for today and 1 is for tomorrow and so on. Weather is only returned for 1 week at a time.
 
@@ -14,7 +18,7 @@ module Agents
 
       The `location` can be a US zipcode, or any location that Wunderground supports. To find one, search [wunderground.com](http://wunderground.com) and copy the location part of the URL.  For example, a result for San Francisco gives `http://www.wunderground.com/US/CA/San_Francisco.html` and London, England gives `http://www.wunderground.com/q/zmw:00000.1.03772`.  The locations in each are `US/CA/San_Francisco` and `zmw:00000.1.03772`, respectively.
 
-      If you plan on using ForecastIO, the `location` must be a set of GPS coordinates.
+      If you plan on using ForecastIO, the `location` must be a comma-separated string of co-ordinates (longitude, latitude). For example, San Francisco would be `37.7771,-122.4196`.
 
       You must setup an [API key for Wunderground](http://www.wunderground.com/weather/api/) in order to use this Agent with Wunderground.
 
@@ -67,8 +71,16 @@ module Agents
         'expected_update_period_in_days' => '2'
       }
     end
+    
+    def check
+      if key_setup?
+        create_event :payload => model(weather_provider, which_day).merge('location' => location)
+      end
+    end
 
-    def service
+    private
+    
+    def weather_provider
       interpolated["service"].presence || "wunderground"
     end
 
@@ -81,8 +93,7 @@ module Agents
     end
 
     def validate_options
-      errors.add(:base, "service is required") unless service.present?
-      errors.add(:base, "service must be set to 'forecastio' or 'wunderground'") unless ["forecastio", "wunderground"].include?(service)
+      errors.add(:base, "service must be set to 'forecastio' or 'wunderground'") unless ["forecastio", "wunderground"].include?(weather_provider)
       errors.add(:base, "location is required") unless location.present?
       errors.add(:base, "api_key is required") unless key_setup?
       errors.add(:base, "which_day selection is required") unless which_day.present?
@@ -100,10 +111,10 @@ module Agents
       end
     end
 
-    def model(service,which_day)
-      if service == "wunderground"
+    def model(weather_provider,which_day)
+      if weather_provider == "wunderground"
         wunderground[which_day]
-      elsif service == "forecastio"
+      elsif weather_provider == "forecastio"
         forecastio.each do |value|
           timestamp = Time.at(value.time)
           if (timestamp.to_date - Time.now.to_date).to_i == which_day
@@ -170,12 +181,5 @@ module Agents
         end
       end
     end
-
-    def check
-      if key_setup?
-        create_event :payload => model(service, which_day).merge('location' => location)
-      end
-    end
-
   end
 end

@@ -1,11 +1,14 @@
 # encoding: utf-8 
-require "mqtt"
 require "json"
 
 module Agents
   class MqttAgent < Agent
+    gem_dependency_check { defined?(MQTT) }
+
     description <<-MD
-      The MQTT agent allows both publication and subscription to an MQTT topic.
+      The MQTT Agent allows both publication and subscription to an MQTT topic.
+
+      #{'## Include `mqtt` in your Gemfile to use this Agent!' if dependencies_missing?}
 
       MQTT is a generic transport protocol for machine to machine communication.
 
@@ -17,7 +20,7 @@ module Agents
 
       Simply choose a topic (think email subject line) to publish/listen to, and configure your service.
 
-      It's easy to setup your own [broker](http://jpmens.net/2013/09/01/installing-mosquitto-on-a-raspberry-pi/) or connect to a [cloud service](www.cloudmqtt.com)
+      It's easy to setup your own [broker](http://jpmens.net/2013/09/01/installing-mosquitto-on-a-raspberry-pi/) or connect to a [cloud service](http://www.cloudmqtt.com)
 
       Hints:
       Many services run mqtts (mqtt over SSL) often with a custom certificate.
@@ -108,31 +111,44 @@ module Agents
         incoming_events.each do |event|
           c.publish(interpolated(event)['topic'], event)
         end
-
-        c.disconnect
       end
     end
 
 
     def check
+      last_message = memory['last_message']
+
       mqtt_client.connect do |c|
+        begin
+          Timeout.timeout((interpolated['max_read_time'].presence || 15).to_i) {
+            c.get_packet(interpolated['topic']) do |packet|
+              topic, payload = message = [packet.topic, packet.payload]
 
-        Timeout::timeout((interpolated['max_read_time'].presence || 15).to_i) {
-          c.get(interpolated['topic']) do |topic, message|
+              # Ignore a message if it is previously received
+              next if (packet.retain || packet.duplicate) && message == last_message
 
-            # A lot of services generate JSON. Try that first
-            payload = JSON.parse(message) rescue message
+              last_message = message
 
-            create_event :payload => { 
-              'topic' => topic, 
-              'message' => payload, 
-              'time' => Time.now.to_i 
-            }
-          end
-        } rescue TimeoutError
+              # A lot of services generate JSON, so try that.
+              begin
+                payload = JSON.parse(payload)
+              rescue
+              end
 
-        c.disconnect   
+              create_event payload: {
+                'topic' => topic,
+                'message' => payload,
+                'time' => Time.now.to_i
+              }
+            end
+          }
+        rescue Timeout::Error
+        end
       end
+
+      # Remember the last original (non-retain, non-duplicate) message
+      self.memory['last_message'] = last_message
+      save!
     end
 
   end

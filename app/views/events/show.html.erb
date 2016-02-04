@@ -16,7 +16,10 @@
       </p>
 
       <% if @event.lat && @event.lng %>
-        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false"></script>
+        <% content_for :head do -%>
+<%= javascript_include_tag "https://maps.googleapis.com/maps/api/js?sensor=false" %>
+<%= javascript_include_tag "map_marker" %>
+        <% end -%>
 
         <p>
           <b>Lat:</b>
@@ -36,14 +39,14 @@
           };
 
           var map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
-        </script>
 
-        <%= render "map_marker", :event => @event %>
+          map_marker(map, <%= Utils.jsonify(@event.location) %>);
+        </script>
       <% end %>
 
       <br />
       <div class="btn-group">
-        <%= link_to '<span class="glyphicon glyphicon-chevron-left"></span> Back'.html_safe, events_path, class: "btn btn-default" %>
+        <%= link_to icon_tag('glyphicon-chevron-left') + ' Back'.html_safe, events_path, class: "btn btn-default" %>
       </div>
     </div>
   </div>

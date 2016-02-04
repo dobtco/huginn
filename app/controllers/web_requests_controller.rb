@@ -16,7 +16,8 @@
 #   ["not found", 404, 'text/plain']
 
 class WebRequestsController < ApplicationController
-  skip_before_filter :authenticate_user!
+  skip_before_action :verify_authenticity_token
+  skip_before_action :authenticate_user!
 
   def handle_request
     user = User.find_by_id(params[:user_id])
@@ -36,6 +37,21 @@ class WebRequestsController < ApplicationController
       end
     else
       render :text => "user not found", :status => 404
+    end
+  end
+
+  # legacy
+  def update_location
+    if user = User.find_by_id(params[:user_id])
+      secret = params[:secret]
+      user.agents.of_type(Agents::UserLocationAgent).each { |agent|
+        if agent.options[:secret] == secret
+          agent.trigger_web_request(params.except(:action, :controller, :user_id, :format), request.method_symbol.to_s, request.format.to_s)
+        end
+      }
+      render :text => "ok"
+    else
+      render :text => "user not found", :status => :not_found
     end
   end
 end

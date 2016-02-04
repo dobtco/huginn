@@ -1,17 +1,35 @@
-require 'spec_helper'
+require 'rails_helper'
 
 describe User do
   describe "validations" do
     describe "invitation_code" do
-      it "only accepts valid invitation codes" do
-        User::INVITATION_CODES.each do |v|
-          should allow_value(v).for(:invitation_code)
+      context "when configured to use invitation codes" do
+        before do
+          stub(User).using_invitation_code? {true}
+        end
+        
+        it "only accepts valid invitation codes" do
+          User::INVITATION_CODES.each do |v|
+            should allow_value(v).for(:invitation_code)
+          end
+        end
+  
+        it "can reject invalid invitation codes" do
+          %w['foo', 'bar'].each do |v|
+            should_not allow_value(v).for(:invitation_code)
+          end
         end
       end
-
-      it "can reject invalid invitation codes" do
-        %w['foo', 'bar'].each do |v|
-          should_not allow_value(v).for(:invitation_code)
+      
+      context "when configured not to use invitation codes" do
+        before do
+          stub(User).using_invitation_code? {false}
+        end
+        
+        it "skips this validation" do
+          %w['foo', 'bar', nil, ''].each do |v|
+            should allow_value(v).for(:invitation_code)
+          end
         end
       end
     end
