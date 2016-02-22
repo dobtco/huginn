@@ -63,7 +63,8 @@ module Agents
         message: "_#{event.payload['current']['title']}_ moved from
                  *#{get_stage_name(event.payload['previous']['stage_id'])}* to
                  *#{get_stage_name(event.payload['current']['stage_id'])}*.
-                 #{deal_link(event.payload['current']['id'])}".squish
+                 #{deal_link(event.payload['current']['id'])}".squish,
+        pipeline_id: event.payload['current']['pipeline_id']
       }
     end
 
@@ -73,7 +74,8 @@ module Agents
       create_event payload: {
         message: "_#{event.payload['current']['title']}_ created in
                  *#{get_stage_name(event.payload['current']['stage_id'])}*.
-                 #{deal_link(event.payload['current']['id'])}".squish
+                 #{deal_link(event.payload['current']['id'])}".squish,
+        pipeline_id: event.payload['current']['pipeline_id']
       }
     end
 
@@ -86,10 +88,10 @@ module Agents
         message: "_#{event.payload['current']['title']}_ changed value from
                  *#{event.payload['previous']['formatted_value']}* to
                  *#{event.payload['current']['formatted_value']}*.
-                 #{deal_link(event.payload['current']['id'])}".squish
+                 #{deal_link(event.payload['current']['id'])}".squish,
+        pipeline_id: event.payload['current']['pipeline_id']
       }
     end
 
   end
 end
-
